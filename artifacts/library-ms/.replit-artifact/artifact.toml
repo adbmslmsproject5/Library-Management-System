@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Library Management System"
+description = "A full-stack library app for browsing a real book catalog, managing student accounts, tracking issued books, and handling admin inventory operations with Supabase Auth and PostgreSQL Row Level Security."
+version = "1.0.0"
+id = "artifacts/library-ms"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18898
+
+[services.development]
+run = "pnpm --filter @workspace/library-ms run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/library-ms", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/library-ms/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18898"
+BASE_PATH = "/"

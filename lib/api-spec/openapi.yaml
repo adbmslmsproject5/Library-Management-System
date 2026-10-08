@@ -3,13 +3,17 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Library catalog, circulation, and administration API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: library
+    description: Public catalog and library operations
+  - name: administration
+    description: Admin-only operations enforced by Supabase Row Level Security
 paths:
   /healthz:
     get:
@@ -24,7 +28,197 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /books:
+    get:
+      operationId: listBooks
+      tags: [library]
+      summary: Search the public book catalog
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: availableOnly
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Matching books
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Book" }
+    post:
+      operationId: createBook
+      tags: [administration]
+      summary: Add a book to the catalog
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookInput" }
+      responses:
+        "201":
+          description: Created book
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Book" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /books/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getBook
+      tags: [library]
+      summary: Get a catalog book
+      responses:
+        "200":
+          description: Book details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Book" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateBook
+      tags: [administration]
+      summary: Update a catalog book
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BookUpdate" }
+      responses:
+        "200":
+          description: Updated book
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Book" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: deleteBook
+      tags: [administration]
+      summary: Remove a book from the catalog
+      responses:
+        "204": { description: Book removed }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [administration]
+      summary: Get library circulation metrics and recent activity
+      responses:
+        "200":
+          description: Admin dashboard summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardSummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /members:
+    get:
+      operationId: listMembers
+      tags: [administration]
+      summary: List library members for circulation
+      responses:
+        "200":
+          description: Library members
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Member" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /issues:
+    get:
+      operationId: listIssues
+      tags: [library]
+      summary: List current user's loans or all loans for an admin
+      parameters:
+        - name: mine
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Loan records visible to the current user
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Issue" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: issueBook
+      tags: [administration]
+      summary: Issue an available book to a member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IssueInput" }
+      responses:
+        "201":
+          description: Created loan record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Issue" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /issues/{id}/return:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: returnBook
+      tags: [administration]
+      summary: Record the return of an issued book
+      responses:
+        "200":
+          description: Updated loan record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Issue" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 components:
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Sign-in is required
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: The current user is not allowed to perform this action
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +227,83 @@ components:
           type: string
       required:
         - status
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    Book:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        author: { type: string }
+        category: { type: string }
+        quantity: { type: integer, minimum: 0 }
+        isbn: { type: string }
+        description: { type: ["string", "null"] }
+        cover_url: { type: ["string", "null"], format: uri }
+        created_at: { type: string, format: date-time }
+      required: [id, title, author, category, quantity, isbn, description, cover_url, created_at]
+    BookInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        author: { type: string, minLength: 1 }
+        category: { type: string, minLength: 1 }
+        quantity: { type: integer, minimum: 0 }
+        isbn: { type: string, minLength: 1 }
+        description: { type: ["string", "null"] }
+        cover_url: { type: ["string", "null"], format: uri }
+      required: [title, author, category, quantity, isbn]
+    BookUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        author: { type: string, minLength: 1 }
+        category: { type: string, minLength: 1 }
+        quantity: { type: integer, minimum: 0 }
+        isbn: { type: string, minLength: 1 }
+        description: { type: ["string", "null"] }
+        cover_url: { type: ["string", "null"], format: uri }
+    Member:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        full_name: { type: string }
+        email: { type: string, format: email }
+      required: [id, full_name, email]
+    Issue:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        book_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        issue_date: { type: string, format: date-time }
+        due_date: { type: string, format: date-time }
+        return_date: { type: ["string", "null"], format: date-time }
+        status: { type: string, enum: [issued, returned] }
+        book_title: { type: string }
+        member_name: { type: string }
+        member_email: { type: string, format: email }
+      required: [id, book_id, user_id, issue_date, due_date, return_date, status, book_title, member_name, member_email]
+    IssueInput:
+      type: object
+      properties:
+        book_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+      required: [book_id, user_id]
+    DashboardSummary:
+      type: object
+      properties:
+        total_titles: { type: integer }
+        total_copies: { type: integer }
+        available_copies: { type: integer }
+        active_loans: { type: integer }
+        overdue_loans: { type: integer }
+        member_count: { type: integer }
+        recent_issues:
+          type: array
+          items: { $ref: "#/components/schemas/Issue" }
+      required: [total_titles, total_copies, available_copies, active_loans, overdue_loans, member_count, recent_issues]
 
