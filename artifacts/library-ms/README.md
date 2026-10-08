@@ -38,3 +38,7 @@ The migration creates 30 sample titles. It uses Row Level Security for all table
 - `pnpm run typecheck`
 
 The Supabase migration runs in the Supabase SQL Editor, not against the separate Replit development database.
+
+### Update Unsplash covers
+
+`supabase/migrations/20261009000001_update_unsplash_book_covers.sql` assigns a distinct, category-matched Unsplash CDN image to each of the 30 catalog records. Run it in the Supabase SQL Editor after those records exist. The transaction checks that all 30 IDs matched and all 30 cover URLs are distinct before committing.
